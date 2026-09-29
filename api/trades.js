@@ -5,10 +5,19 @@ const GT = `https://api.geckoterminal.com/api/v2/networks/solana/pools/${POOL}`;
 module.exports = async (req, res) => {
   try {
     const h = { accept: 'application/json' };
-    const [p, t] = await Promise.all([
-      fetch(GT, { headers: h }).then((r) => r.json()),
-      fetch(`${GT}/trades`, { headers: h }).then((r) => r.json()),
-    ]);
+    const get = async (url) => {
+      for (let i = 0; i < 3; i++) {
+        const r = await fetch(url, { headers: h });
+        if (r.ok) return r.json();
+        await new Promise((ok) => setTimeout(ok, 700 * (i + 1))); // GeckoTerminal rate limit: back off and retry
+      }
+      return null;
+    };
+    const [p, t] = await Promise.all([get(GT), get(`${GT}/trades`)]);
+    if (!p || !t || !t.data) {
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(502).json({ error: 'GeckoTerminal is busy, try again shortly' });
+    }
     const a = (p && p.data && p.data.attributes) || {};
     const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
     const pool = {
