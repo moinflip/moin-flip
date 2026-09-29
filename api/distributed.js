@@ -51,7 +51,7 @@ module.exports = async (req, res) => {
     for (let i = 0; i < batch.length; i += 10) {
       const chunk = batch.slice(i, i + 10);
       const txs = await Promise.all(chunk.map((s) => s.err ? null :
-        rpc('getTransaction', [s.signature, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0, commitment: 'finalized' }])));
+        rpc('getTransaction', [s.signature, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 1, commitment: 'finalized' }])));
       let stop = false;
       for (let k = 0; k < chunk.length; k++) {
         if (!chunk[k].err && !txs[k]) { stop = true; break; } // not available yet; pick it up next call
