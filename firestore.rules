@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Flip game players: anyone can read (leaderboard + MC chart), each visitor writes only their own doc.
+    match /players/{uid} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 18
+        && request.resource.data.balance is number
+        && (!('hist' in request.resource.data) || request.resource.data.hist.size() <= 300);
+    }
+    // Live chat: each visitor keeps their last 20 messages in their own doc.
+    match /chat/{uid} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 18
+        && request.resource.data.msgs is list
+        && request.resource.data.msgs.size() <= 20;
+    }
+    // meta/* is written only by the server (Admin SDK bypasses these rules).
+  }
+}
