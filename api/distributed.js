@@ -2,9 +2,9 @@
 // Every SOL that enters the distributor wallet comes from moin's creator vault, and the
 // distributor only pays holders, so: paid out = everything sent in - what it still holds.
 // The running "sent in" total is stored in Firestore so each call only reads new transactions.
-const { CREATOR_VAULT, DISTRIBUTOR, rpc, adminDb } = require('../lib/solana');
+const { CREATOR_VAULT, DISTRIBUTOR, rpc, adminDb, sleep } = require('../lib/solana');
 
-const PER_CALL = 150; // max new transactions processed per request (the first backfill spreads over a few calls)
+const PER_CALL = 60; // max new transactions processed per request (the first backfill spreads over a few calls)
 
 async function signaturesSince(until) {
   const out = [];
@@ -21,26 +21,22 @@ async function signaturesSince(until) {
   return out.reverse(); // oldest first
 }
 
+// SOL the distributor gained in a transaction where the creator vault lost SOL.
+// Uses balance changes, so it works whether the program moved SOL with a system
+// transfer or by editing lamports directly.
 function lamportsIntoDistributor(tx) {
-  let sum = 0;
-  const scan = (list) => {
-    for (const ins of list || []) {
-      const p = ins.parsed;
-      if (ins.program === 'system' && p && p.type === 'transfer' &&
-          p.info.source === CREATOR_VAULT && p.info.destination === DISTRIBUTOR) {
-        sum += Number(p.info.lamports);
-      }
-    }
-  };
-  scan(tx.transaction.message.instructions);
-  for (const inner of (tx.meta && tx.meta.innerInstructions) || []) scan(inner.instructions);
-  return sum;
+  const keys = (tx.transaction.message.accountKeys || []).map((k) => (typeof k === 'string' ? k : k.pubkey));
+  const v = keys.indexOf(CREATOR_VAULT), d = keys.indexOf(DISTRIBUTOR);
+  if (v < 0 || d < 0 || !tx.meta) return 0;
+  const dv = tx.meta.postBalances[v] - tx.meta.preBalances[v];
+  const dd = tx.meta.postBalances[d] - tx.meta.preBalances[d];
+  return dv < 0 && dd > 0 ? dd : 0;
 }
 
 module.exports = async (req, res) => {
   try {
     const db = adminDb();
-    const ref = db.doc('meta/distributed');
+    const ref = db.doc('meta/distributed_v2');
     const snap = await ref.get();
     const st = snap.exists ? snap.data() : { inLamports: 0, newest: null, sweeps: 0, lastSweep: null };
 
@@ -48,8 +44,9 @@ module.exports = async (req, res) => {
     const batch = sigs.slice(0, PER_CALL);
     let add = 0, sweeps = 0, lastSweep = st.lastSweep || null, processed = 0;
 
-    for (let i = 0; i < batch.length; i += 10) {
-      const chunk = batch.slice(i, i + 10);
+    for (let i = 0; i < batch.length; i += 4) {
+      if (i) await sleep(250); // stay under the free plan's requests-per-second limit
+      const chunk = batch.slice(i, i + 4);
       const txs = await Promise.all(chunk.map((s) => s.err ? null :
         rpc('getTransaction', [s.signature, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 1, commitment: 'finalized' }])));
       let stop = false;
