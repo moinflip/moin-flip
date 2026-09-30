@@ -393,7 +393,7 @@ button{cursor:pointer}
       </div>
       <div class="ocpanel occhart">
         <h3 class="display">Live chart</h3>
-        <iframe title="Live $MOIN chart" loading="lazy" src="https://dexscreener.com/solana/8DXqVUopcdviLvujTcpwEqkKzB43Arp6E1axzsEE5Btq?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartTheme=dark&theme=dark&chartStyle=1&chartType=usd&interval=5"></iframe>
+        <iframe title="Live $MOIN chart" loading="lazy" src="https://www.geckoterminal.com/solana/pools/CbR2UL7ktBr8MUUTj3FYcURZerp28GA2p1vPuMeKy1Je?embed=1&amp;info=0&amp;swaps=0&amp;grayscale=0&amp;light_chart=0&amp;chart_type=price&amp;resolution=5m" allow="clipboard-write" allowfullscreen></iframe>
       </div>
     </div>
     <p class="tnote">Holder rewards: every moin trade pays a fee into moin's creator vault, which sweeps it to the rewards wallet <a href="https://solscan.io/account/6Xp6WiRPj3LgEAVyt7ErYaGc2HqX9WAvAMmcNgeeBWVa" target="_blank" rel="noopener">6Xp6…BWVa</a> that pays holders in SOL. "Paid to holders" is every SOL that wallet has received minus what it's still holding. Data from Solana via Helius and GeckoTerminal.</p>
@@ -847,14 +847,19 @@ const HEAD_URI="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEA
         .then(el=>{ if(req!==xReq) return; b.textContent=''; if(el){ b.append(holder); setTimeout(()=>{ if(req===xReq && !holder.querySelector('iframe')) xFallback(h,'X is hiding this timeline right now.'); },6000);} else xFallback(h,'X is hiding this timeline right now.'); })
         .catch(()=>{ if(req===xReq) xFallback(h,'X is hiding this timeline right now.'); });
     };
-    if(window.twttr&&twttr.widgets) go();
-    else if(!document.getElementById('x-widgets')){
-      window.twttr=window.twttr||{_e:[],ready(f){this._e.push(f);}};
+    const ready=()=>window.twttr&&twttr.widgets&&twttr.widgets.createTimeline;
+    if(ready()) { go(); return; }
+    if(!document.getElementById('x-widgets')){
       const sc=document.createElement('script'); sc.id='x-widgets'; sc.async=true; sc.src='https://platform.twitter.com/widgets.js';
-      sc.onload=()=>twttr.ready?twttr.ready(go):go(); sc.onerror=()=>xFallback(h,"X's embed didn't load (an ad blocker may be stopping it).");
+      sc.onerror=()=>{ if(req===xReq) xFallback(h,"X's embed didn't load (an ad blocker may be stopping it)."); };
       document.head.append(sc);
-      setTimeout(()=>{ if(req===xReq && !(window.twttr&&twttr.widgets)) xFallback(h,"X's embed didn't load (an ad blocker may be stopping it)."); },10000);
-    } else twttr.ready(go);
+    }
+    let tries=0;
+    const wait=setInterval(()=>{
+      if(req!==xReq){ clearInterval(wait); return; }
+      if(ready()){ clearInterval(wait); go(); }
+      else if(++tries>50){ clearInterval(wait); xFallback(h,"X's embed didn't load (an ad blocker may be stopping it)."); }
+    },200);
   }
   document.querySelectorAll('.xtab').forEach(t=>t.addEventListener('click',()=>{
     document.querySelectorAll('.xtab').forEach(x=>x.setAttribute('aria-selected',x===t?'true':'false'));
