@@ -206,6 +206,38 @@ button{cursor:pointer}
 .pbar{display:inline-block;width:30px;height:8px;border:1.5px solid var(--line);border-radius:5px;margin-left:8px;vertical-align:middle;overflow:hidden;background:var(--panel)}
 .pbar i{display:block;height:100%;background:var(--pond)}
 
+.settings{position:fixed;top:calc(90px + env(safe-area-inset-top,0px));right:max(16px,calc((100vw - 1560px)/2 + 22px));z-index:60;width:min(320px,calc(100vw - 32px));padding:16px;display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+.settings[hidden]{display:none}
+.settings h3{margin:0;font-size:24px;color:var(--pond);-webkit-text-stroke:1px var(--line)}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:600}
+.switch{width:54px;height:30px;border:3px solid var(--line);border-radius:999px;background:var(--panel2);position:relative;padding:0;flex:none}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--line);transition:transform .2s}
+.switch[aria-checked="true"]{background:var(--win)}
+.switch[aria-checked="true"]::after{transform:translateX(24px);background:#fff}
+.nowplaying{background:var(--panel2);border:2px solid var(--line);border-radius:12px;padding:8px 10px;font-size:14px;display:flex;align-items:center;gap:8px}
+.nowplaying b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.eq{display:inline-flex;gap:2px;align-items:flex-end;height:14px;flex:none}
+.eq i{width:3px;height:3px;background:var(--pond);animation:eq .8s infinite ease-in-out}
+.eq i:nth-child(2){animation-delay:-.3s}.eq i:nth-child(3){animation-delay:-.6s}
+.eq.off i{animation:none;height:3px}
+@keyframes eq{0%,100%{height:3px}50%{height:14px}}
+.settings input[type=range]{accent-color:var(--pond);width:100%;margin:0}
+.mine{margin:0;background:var(--gold);color:#12281b;border:3px solid var(--line);border-radius:14px;padding:8px 10px;font-weight:700;box-shadow:3px 3px 0 var(--line);animation:pulse 1.2s infinite}
+.mine[hidden]{display:none}
+.stage{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.stage.minable{animation:wiggle 1.4s infinite}
+@keyframes wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-4deg)}75%{transform:rotate(4deg)}}
+.bubbles{position:fixed;inset:0;pointer-events:none;z-index:35;overflow:hidden}
+.bubble{position:absolute;bottom:-120px;width:var(--s);height:var(--s);border-radius:50%;pointer-events:auto;cursor:pointer;border:0;padding:0;
+  background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.95) 0 7%,rgba(255,255,255,.2) 8% 32%,rgba(170,235,195,.16) 33% 70%,rgba(255,255,255,.6) 71% 75%,rgba(170,235,195,.08) 76%);
+  box-shadow:inset 0 0 14px rgba(255,255,255,.7),0 6px 16px rgba(0,0,0,.12)}
+.bubble img{position:absolute;inset:18%;width:64%;height:64%;border-radius:50%;opacity:.95;pointer-events:none}
+.bubble .amt{position:absolute;left:50%;top:-8px;transform:translateX(-50%);background:var(--gold);color:#12281b;border:2px solid #12281b;border-radius:999px;font:700 11px Fredoka,system-ui,sans-serif;padding:0 6px;pointer-events:none;white-space:nowrap}
+.gain{position:fixed;z-index:45;pointer-events:none;font-size:30px;color:var(--gold);-webkit-text-stroke:2px #12281b;text-shadow:3px 3px 0 #12281b;white-space:nowrap}
+.peek{position:fixed;bottom:-14px;width:110px;z-index:36;cursor:pointer;border:0;background:none;padding:0;transform:translateY(110%)}
+.peek img{display:block;width:100%;border-radius:50%;border:4px solid #12281b;box-shadow:0 0 0 5px var(--gold)}
+.peek .say{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);white-space:nowrap;background:#fff;color:#12281b;border:3px solid #12281b;border-radius:14px;padding:3px 10px;font:700 14px Fredoka,system-ui,sans-serif;margin-bottom:10px;box-shadow:3px 3px 0 #12281b}
+
 /* Sidebar */
 .side{display:flex;flex-direction:column;gap:24px;min-height:0}
 @media (max-width:1299px){.chat{height:480px;flex:none}}
@@ -259,6 +291,7 @@ button{cursor:pointer}
     <div class="topright">
       <div class="wallet" id="wallet"><span class="amt display" id="bal">1,000</span><small>$MOIN</small></div>
       <button class="iconbtn" id="mute" aria-label="Mute sounds">🔊</button>
+      <button class="iconbtn" id="gear" aria-label="Settings" aria-expanded="false" aria-controls="settings">⚙️</button>
     </div>
   </header>
 
@@ -318,7 +351,7 @@ button{cursor:pointer}
         <div class="stat"><b id="st-wins">0</b><small>Wins</small></div>
         <div class="stat"><b id="st-best">1,000</b><small>Best</small></div>
       </div>
-      <button class="reset" id="reset" hidden>Out of $MOIN? Get a fresh 1,000</button>
+      <p class="mine" id="mineHint" hidden>Low on $MOIN? Tap the Pepe coin to mine more, or pop the floating bubbles.</p>
     </div>
   </main>
   </div>
@@ -400,6 +433,16 @@ button{cursor:pointer}
   </section>
 </div>
 
+<div class="settings box" id="settings" hidden role="dialog" aria-label="Settings">
+  <h3 class="display">Settings</h3>
+  <div class="setrow"><span>Music</span><button class="switch" id="swMusic" type="button" role="switch" aria-checked="true" aria-label="Music"></button></div>
+  <div class="nowplaying"><span class="eq off" id="eq" aria-hidden="true"><i></i><i></i><i></i></span><b id="songName">Tap anywhere to start the music</b><button class="chip" id="nextSong" type="button">Next ⏭</button></div>
+  <label class="setrow" for="vol"><span>Music volume</span></label>
+  <input type="range" id="vol" min="0" max="100" value="50">
+  <div class="setrow"><span>Sound effects</span><button class="switch" id="swSfx" type="button" role="switch" aria-checked="true" aria-label="Sound effects"></button></div>
+  <div class="setrow"><span>Pepe bubbles &amp; peeks</span><button class="switch" id="swBub" type="button" role="switch" aria-checked="true" aria-label="Pepe bubbles and peeks"></button></div>
+  <p class="tnote" style="margin:0">All music is original, generated live in your browser.</p>
+</div>
 <div class="namebox" id="namebox" hidden>
   <form id="nameform" class="box">
     <img data-head alt="">
@@ -468,7 +511,7 @@ const HEAD_URI="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEA
   function renderWallet(){
     $('bal').textContent=fmt(me.balance);
     $('st-flips').textContent=fmt(me.flips); $('st-wins').textContent=fmt(me.wins); $('st-best').textContent=fmt(me.best);
-    $('reset').hidden=me.balance>=1;
+    $('mineHint').hidden=me.balance>=100; const stg=document.querySelector('.stage'); if(stg) stg.classList.toggle('minable',me.balance<100);
     document.querySelectorAll('.pick').forEach(b=>b.disabled=flipping||me.balance<1);
     const hot=me.streak>=3;
     $('streak').textContent='🔥 '+me.streak+' streak'; $('streak').classList.toggle('on',hot); $('game').classList.toggle('hot',hot);
@@ -599,8 +642,6 @@ const HEAD_URI="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEA
     },dur+40);
   }
 
-  $('reset').addEventListener('click',()=>{me.balance=START;me.streak=0;recordHist();betEl.value=100;renderWallet();save();bumpWallet();sfx.win();
-    $('result').className='result display pop';$('result').textContent='Fresh stack. Heads or butt?';});
 
   function askName(){ $('namebox').hidden=false; setTimeout(()=>$('nameinput').focus(),50); }
   $('nameform').addEventListener('submit',e=>{ e.preventDefault(); const v=$('nameinput').value.trim().slice(0,18); if(!v) return;
@@ -763,6 +804,185 @@ const HEAD_URI="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEA
   if(window.__moinBackend!==undefined) connect(window.__moinBackend);
   window.addEventListener('moin-backend',e=>connect(e.detail));
   setTimeout(()=>{ if(!connect.done) connect(null); },12000);
+
+  /* ---------- Settings + original background music ---------- */
+  const prefs={music:true,vol:50,bubbles:true};
+  try{ Object.assign(prefs, JSON.parse(localStorage.getItem('moinflip-prefs')||'{}')); }catch(e){}
+  const savePrefs=()=>{ try{localStorage.setItem('moinflip-prefs',JSON.stringify(prefs));}catch(e){} };
+
+  // Four original songs, generated live with Web Audio (no recordings, no copyright).
+  const Music=(()=>{
+    const SONGS=[
+      {name:'Pond Hop',bpm:112,root:60,scale:[0,2,4,5,7,9,11],chords:[[0,4,7],[7,11,14],[9,12,16],[5,9,12]],lead:'square',swing:0,seed:11,drums:'pop'},
+      {name:'Lily Pad Lounge',bpm:84,root:62,scale:[0,2,3,5,7,9,10],chords:[[0,3,7,10],[5,9,12,15],[10,14,17,21],[3,7,10,14]],lead:'triangle',swing:.18,seed:23,drums:'lofi'},
+      {name:'Butt Bounce',bpm:132,root:65,scale:[0,2,4,5,7,9,11],chords:[[0,4,7],[5,9,12],[0,4,7],[7,11,14]],lead:'square',swing:0,seed:37,drums:'bounce'},
+      {name:'Swamp Night',bpm:100,root:57,scale:[0,2,3,5,7,8,10],chords:[[0,3,7],[8,12,15],[3,7,10],[10,14,17]],lead:'sawtooth',swing:.1,seed:51,drums:'lofi'}
+    ];
+    let ctx=null, master=null, timer=null, idx=Math.floor(Math.random()*SONGS.length), song=null, step=0, nextT=0, bars=0, playing=false, noiseBuf=null, listener=()=>{};
+    const N=n=>440*Math.pow(2,(n-69)/12);
+    const rng=seed=>()=>{ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; };
+    function build(sd){
+      const r=rng(sd.seed), lofi=sd.drums==='lofi';
+      const phrase=()=>{ const out=[]; let prev=sd.chords[0][0]%12+12;
+        for(let b=0;b<4;b++){ const ch=sd.chords[b];
+          for(let e=0;e<8;e++){
+            if(e>0 && r()<(lofi?.45:.28)){ out.push(null); continue; }
+            let n=r()<.65 ? ch[Math.floor(r()*ch.length)]%12+12 : sd.scale[Math.floor(r()*sd.scale.length)]+12;
+            if(Math.abs(n-prev)>7) n+= n>prev?-12:12;
+            if(n<7) n+=12;
+            prev=n; out.push(n);
+          } }
+        return out; };
+      const A=phrase(), B=phrase();
+      return Object.assign({},sd,{mel:[A,A,B,A]});
+    }
+    function osc(type,freq,t,dur,vol,cutoff){
+      const o=ctx.createOscillator(), g=ctx.createGain(); o.type=type; o.frequency.value=freq;
+      let node=o; if(cutoff){ const f=ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=cutoff; o.connect(f); node=f; }
+      node.connect(g); g.connect(master);
+      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+0.012); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      o.start(t); o.stop(t+dur+0.05);
+    }
+    function hit(t,dur,vol,hp){
+      if(!noiseBuf){ noiseBuf=ctx.createBuffer(1,ctx.sampleRate*0.5,ctx.sampleRate); const d=noiseBuf.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; }
+      const s=ctx.createBufferSource(); s.buffer=noiseBuf; const f=ctx.createBiquadFilter(); f.type='highpass'; f.frequency.value=hp;
+      const g=ctx.createGain(); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      s.connect(f).connect(g).connect(master); s.start(t); s.stop(t+dur+0.02);
+    }
+    function kick(t,vol){
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.frequency.setValueAtTime(140,t); o.frequency.exponentialRampToValueAtTime(45,t+0.12);
+      g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.2);
+      o.connect(g).connect(master); o.start(t); o.stop(t+0.25);
+    }
+    function play(st,t,spb){
+      const bar=Math.floor(st/16)%16, s=st%16, ch=song.chords[bar%4], R=song.root, lofi=song.drums==='lofi', bounce=song.drums==='bounce';
+      const tt= song.swing && s%4===2 ? t+song.swing*spb*2 : t;
+      if(s===0 && lofi) ch.forEach(c=>osc('sine',N(R+c),t,spb*15,.03));
+      if(s===0||s===8||(bounce&&(s===6||s===14))) osc('triangle',N(R-12+ch[0]),t,spb*(lofi?6:3),.15);
+      if(!lofi && (s===4||s===12)) ch.forEach(c=>osc('square',N(R+c),t,spb*1.5,.016,1800));
+      if(s%2===0){ const n=song.mel[Math.floor(bar/4)%4][(bar%4)*8+s/2]; if(n!=null) osc(song.lead,N(R+n),tt,spb*(lofi?3:1.8),lofi?.05:.032,lofi?1400:2600); }
+      if(s===0||s===8||(bounce&&s===10)) kick(t,lofi?.32:.45);
+      if(s===4||s===12) hit(t,lofi?.12:.15,lofi?.1:.16,1500);
+      if(lofi ? s%4===2 : s%2===0) hit(tt,.04,lofi?.045:.055,7000);
+    }
+    function tick(){
+      const spb=60/song.bpm/4;
+      while(nextT<ctx.currentTime+0.15){
+        play(step,nextT,spb); step++; nextT+=spb;
+        if(step%16===0 && ++bars>=32){ next(); return; }  // a new song every 32 bars
+      }
+    }
+    function load(i){ idx=(i+SONGS.length)%SONGS.length; song=build(SONGS[idx]); step=0; bars=0; nextT=ctx.currentTime+0.12; listener(song.name); }
+    function start(){
+      if(!ctx){ try{ ctx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return; } master=ctx.createGain(); master.gain.value=0.0001; master.connect(ctx.destination); }
+      if(ctx.state==='suspended') ctx.resume();
+      if(!song) load(idx);
+      nextT=Math.max(nextT,ctx.currentTime+0.1);
+      master.gain.cancelScheduledValues(ctx.currentTime); master.gain.setTargetAtTime(prefs.vol/100*0.6+0.0001,ctx.currentTime,0.3);
+      clearInterval(timer); timer=setInterval(tick,25); playing=true; listener(song.name);
+    }
+    function stop(){
+      playing=false; clearInterval(timer);
+      if(ctx){ master.gain.setTargetAtTime(0.0001,ctx.currentTime,0.1); setTimeout(()=>{ if(!playing&&ctx) ctx.suspend(); },500); }
+      listener(song?song.name:null);
+    }
+    function next(){
+      if(!ctx||!playing){ idx=(idx+1)%SONGS.length; song=null; listener(SONGS[idx].name); return; }
+      clearInterval(timer);
+      master.gain.setTargetAtTime(0.0001,ctx.currentTime,0.25);
+      setTimeout(()=>{ if(!playing) return; load(idx+1); master.gain.setTargetAtTime(prefs.vol/100*0.6+0.0001,ctx.currentTime,0.4); timer=setInterval(tick,25); },900);
+    }
+    function setVol(v){ if(ctx&&playing) master.gain.setTargetAtTime(v/100*0.6+0.0001,ctx.currentTime,0.1); }
+    document.addEventListener('visibilitychange',()=>{ if(!ctx) return; if(document.hidden&&playing){ clearInterval(timer); ctx.suspend(); } else if(!document.hidden&&playing){ ctx.resume().then(()=>{ nextT=ctx.currentTime+0.1; clearInterval(timer); timer=setInterval(tick,25); }); } });
+    return { start, stop, next, setVol, get playing(){return playing;}, onChange(f){listener=f;} };
+  })();
+
+  const swMusic=$('swMusic'), swSfx=$('swSfx'), swBub=$('swBub');
+  const setSw=(el,on)=>el.setAttribute('aria-checked',on?'true':'false');
+  Music.onChange(name=>{ $('songName').textContent=Music.playing?('Now playing: '+name):(prefs.music?'Tap anywhere to start the music':'Music is off'); $('eq').classList.toggle('off',!Music.playing); });
+  setSw(swMusic,prefs.music); setSw(swSfx,!muted); setSw(swBub,prefs.bubbles); $('vol').value=prefs.vol;
+  $('songName').textContent=prefs.music?'Tap anywhere to start the music':'Music is off'; $('eq').classList.add('off');
+  const kickoff=()=>{ if(prefs.music && !Music.playing) Music.start(); };
+  document.addEventListener('pointerdown',kickoff,{once:true}); document.addEventListener('keydown',kickoff,{once:true});
+  swMusic.addEventListener('click',()=>{ prefs.music=!prefs.music; setSw(swMusic,prefs.music); savePrefs(); prefs.music?Music.start():Music.stop(); });
+  swSfx.addEventListener('click',()=>{ setMute(!muted); setSw(swSfx,!muted); if(!muted) tone(880,0,.08,'triangle',.12); });
+  $('mute').addEventListener('click',()=>setSw(swSfx,!muted));
+  swBub.addEventListener('click',()=>{ prefs.bubbles=!prefs.bubbles; setSw(swBub,prefs.bubbles); savePrefs(); if(!prefs.bubbles) bubLayer.textContent=''; });
+  $('vol').addEventListener('input',e=>{ prefs.vol=+e.target.value; Music.setVol(prefs.vol); savePrefs(); });
+  $('nextSong').addEventListener('click',()=>{ if(!prefs.music){ prefs.music=true; setSw(swMusic,true); savePrefs(); Music.start(); } else Music.next(); });
+  const panel=$('settings');
+  $('gear').addEventListener('click',e=>{ e.stopPropagation(); panel.hidden=!panel.hidden; $('gear').setAttribute('aria-expanded',String(!panel.hidden)); });
+  document.addEventListener('click',e=>{ if(!panel.hidden && !panel.contains(e.target) && e.target!==$('gear')) { panel.hidden=true; $('gear').setAttribute('aria-expanded','false'); } });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape' && !panel.hidden){ panel.hidden=true; $('gear').focus(); } });
+
+  /* ---------- Free $MOIN: bubbles, peeking Pepe, tap-to-mine ---------- */
+  let giftT=null;
+  function floatText(txt,x,y){
+    if(reduce) return;
+    const d=document.createElement('div'); d.className='gain display'; d.textContent=txt; d.style.left=x+'px'; d.style.top=y+'px'; document.body.append(d);
+    d.animate([{transform:'translate(-50%,0) scale(.6)',opacity:0},{transform:'translate(-50%,-20px) scale(1.15)',opacity:1,offset:.2},{transform:'translate(-50%,-70px) scale(1)',opacity:0}],{duration:1100,easing:'ease-out'}).onfinish=()=>d.remove();
+  }
+  function popBurst(x,y){
+    if(reduce) return;
+    for(let i=0;i<12;i++){
+      const p=document.createElement('div'); p.className='p'; const s=5+Math.random()*7;
+      p.style.cssText=`width:${s}px;height:${s}px;border-radius:50%;background:${['#ffffff','#bff0cc','#f4c430'][i%3]};border:1.5px solid #12281b`;
+      fx.append(p); const a=Math.random()*Math.PI*2, d=40+Math.random()*50;
+      p.animate([{transform:`translate(${x}px,${y}px)`},{transform:`translate(${x+Math.cos(a)*d}px,${y+Math.sin(a)*d}px) scale(.3)`,opacity:0}],{duration:500+Math.random()*300,easing:'ease-out'}).onfinish=()=>p.remove();
+    }
+  }
+  function gift(n,x,y){
+    me.balance+=n; me.best=Math.max(me.best,me.balance);
+    renderWallet(); bumpWallet(); floatText('+'+n,x,y);
+    clearTimeout(giftT); giftT=setTimeout(()=>{ recordHist(); save(); if(!online) showOffline(); },1500);
+  }
+
+  const bubLayer=document.createElement('div'); bubLayer.className='bubbles'; bubLayer.setAttribute('aria-live','off'); document.body.append(bubLayer);
+  function spawnBubble(){
+    if(!prefs.bubbles||document.hidden||bubLayer.children.length>=3) return;
+    const s=58+Math.random()*34, val=[5,10,10,15,20,25,50][Math.floor(Math.random()*7)];
+    const b=document.createElement('button'); b.className='bubble'; b.type='button'; b.style.setProperty('--s',s+'px'); b.style.left=(4+Math.random()*86)+'vw';
+    b.setAttribute('aria-label','Pop bubble for '+val+' MOIN');
+    const img=document.createElement('img'); img.src=HEAD_SRC; img.alt='';
+    const tag=document.createElement('span'); tag.className='amt'; tag.textContent='+'+val;
+    b.append(img,tag); bubLayer.append(b);
+    const H=window.innerHeight+s+160, dur=12000+Math.random()*7000, sway=18+Math.random()*40, fr=[];
+    for(let i=0;i<=12;i++) fr.push({transform:`translate(${reduce?0:Math.sin(i/12*Math.PI*3)*sway}px,${-H*i/12}px)`});
+    const an=b.animate(fr,{duration:dur,easing:'linear'}); an.onfinish=()=>b.remove();
+    b.addEventListener('click',()=>{ an.pause(); const r=b.getBoundingClientRect(), x=r.left+r.width/2, y=r.top+r.height/2; b.remove(); popBurst(x,y); gift(val,x,r.top); tone(650,0,.05,'sine',.22,1500); tone(1250,.04,.08,'triangle',.08); },{once:true});
+  }
+  setInterval(()=>{ if(Math.random()<.65) spawnBubble(); },8000);
+  setTimeout(spawnBubble,2500);
+
+  const PEEK_LINES=['psst… tap me','gm frens','flip it!','heads or butt?','free $MOIN?','ribbit'];
+  function peek(){
+    if(!prefs.bubbles||document.hidden||document.querySelector('.peek')) return;
+    const left=Math.random()<.5, b=document.createElement('button'); b.className='peek'; b.type='button'; b.style[left?'left':'right']='18px';
+    b.setAttribute('aria-label','Tap Pepe for 25 MOIN');
+    const say=document.createElement('span'); say.className='say'; say.textContent=PEEK_LINES[Math.floor(Math.random()*PEEK_LINES.length)];
+    const img=document.createElement('img'); img.src=HEAD_SRC; img.alt=''; b.append(say,img); document.body.append(b);
+    const tilt=left?8:-8;
+    const inAn=b.animate([{transform:'translateY(110%) rotate(0)'},{transform:`translateY(-8%) rotate(${tilt}deg)`,offset:.6},{transform:'translateY(0) rotate(0)'}],{duration:reduce?10:700,easing:'cubic-bezier(.3,1.5,.5,1)',fill:'forwards'});
+    const wig=setTimeout(()=>{ b.animate([{transform:'rotate(0)'},{transform:`rotate(${tilt}deg)`},{transform:`rotate(${-tilt}deg)`},{transform:'rotate(0)'}],{duration:600,iterations:2,composite:'add'}); },900);
+    const leave=()=>{ clearTimeout(wig); inAn.cancel(); b.animate([{transform:'translateY(0)'},{transform:'translateY(115%)'}],{duration:reduce?10:450,easing:'ease-in',fill:'forwards'}).onfinish=()=>b.remove(); };
+    const timer=setTimeout(leave,4200);
+    b.addEventListener('click',()=>{ clearTimeout(timer); const r=b.getBoundingClientRect(); popBurst(r.left+r.width/2,r.top+r.height/2); gift(25,r.left+r.width/2,r.top); say.textContent='+25!'; tone(880,0,.08,'square',.06); tone(1320,.08,.12,'square',.05); setTimeout(leave,500); },{once:true});
+  }
+  (function schedulePeek(){ setTimeout(()=>{ peek(); schedulePeek(); },30000+Math.random()*30000); })();
+
+  // Out of (or low on) $MOIN? Tap the coin to mine more.
+  const stageEl=document.querySelector('.stage'); let lastTap=0;
+  stageEl.addEventListener('click',e=>{
+    if(flipping) return;
+    if(me.balance>=100){ stageEl.animate([{transform:'scale(1)'},{transform:'scale(.95)'},{transform:'scale(1)'}],{duration:200}); tone(900,0,.05,'triangle',.05); return; }
+    const now=Date.now(); if(now-lastTap<120) return; lastTap=now;
+    const r=stageEl.getBoundingClientRect(), x=e.clientX||r.left+r.width/2, y=e.clientY||r.top;
+    gift(10,x,y-10); popBurst(x,y);
+    stageEl.animate([{transform:'scale(1)'},{transform:'scale(.9)'},{transform:'scale(1.04)'},{transform:'scale(1)'}],{duration:220});
+    tone(1000+Math.random()*400,0,.06,'square',.05);
+  });
+  renderWallet();
 
   /* ---------- On-chain data ---------- */
   const usd=n=>n==null||isNaN(n)?'–':'$'+(Math.abs(n)>=1e3?new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:2}).format(n):n.toFixed(n<1?4:2));
