@@ -168,12 +168,22 @@ button{cursor:pointer}
 .ocstat.big{background:var(--gold);color:#12281b}
 .ocstat.big small,.ocstat.big span{color:#3b4a1a}
 .ocstat .up{color:var(--win)} .ocstat .down{color:var(--lose)}
-.ocgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:16px}
+.ocgrid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1fr) minmax(0,1.5fr);gap:16px}
+@media (max-width:1250px){.ocgrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.occhart{grid-column:1/-1}}
+.xfeed{min-height:760px}
+.xtabs{display:flex;border-bottom:3px solid var(--line)}
+.xtab{flex:1;border:0;background:var(--panel2);padding:8px;font-weight:700;font-size:14px;color:var(--muted)}
+.xtab+.xtab{border-left:3px solid var(--line)}
+.xtab[aria-selected="true"]{background:var(--gold);color:#12281b}
+.xbody{flex:1;overflow-y:auto;min-height:0;height:620px;padding:6px}
+.xbody .empty{padding:8px}
+.xlinks{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;border-top:3px solid var(--line)}
+.xlinks a{text-align:center;text-decoration:none;color:var(--ink);background:var(--panel2);border:2px solid var(--line);border-radius:12px;padding:7px;font-weight:700;font-size:13px;box-shadow:2px 2px 0 var(--line)}
 .occol{display:grid;gap:16px;min-width:0;align-content:start}
 .occhart{min-height:760px}
 .occhart iframe{flex:1;width:100%;min-height:700px;border:0;display:block;background:#0c1f14}
 @media (max-width:900px){.occhart{min-height:0}.occhart iframe{min-height:520px}}
-@media (max-width:900px){.ocgrid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:900px){.ocgrid{grid-template-columns:minmax(0,1fr)}.xfeed{min-height:0}.xbody{height:480px}}
 .ocpanel{border:3px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
 .ocpanel h3{margin:0;padding:8px 14px;font-size:20px;background:var(--pond);color:#fff;-webkit-text-stroke:1px var(--line);border-bottom:3px solid var(--line)}
 .tradelist{height:340px;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:6px}
@@ -188,12 +198,12 @@ button{cursor:pointer}
 .trade a,.holdtbl a,.tnote a{color:inherit}
 .holdwrap{height:360px;overflow:auto}
 .holdtbl{width:100%;border-collapse:collapse;font-size:14px}
-.holdtbl th{position:sticky;top:0;background:var(--panel2);text-align:left;padding:8px 10px;border-bottom:2px solid var(--line);font-size:12px;color:var(--muted)}
-.holdtbl td{padding:6px 10px;border-bottom:1px solid color-mix(in srgb,var(--line) 20%,transparent);white-space:nowrap}
+.holdtbl th{position:sticky;top:0;background:var(--panel2);text-align:left;padding:8px 6px;border-bottom:2px solid var(--line);font-size:12px;color:var(--muted)}
+.holdtbl td{padding:6px 6px;border-bottom:1px solid color-mix(in srgb,var(--line) 20%,transparent);white-space:nowrap}
 .holdtbl .r{text-align:right}
 .holdtbl code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
 .holdtbl .lbl{margin-left:6px;font-size:11px;font-weight:700;background:var(--gold);color:#12281b;border:1.5px solid var(--line);border-radius:6px;padding:0 5px}
-.pbar{display:inline-block;width:54px;height:8px;border:1.5px solid var(--line);border-radius:5px;margin-left:8px;vertical-align:middle;overflow:hidden;background:var(--panel)}
+.pbar{display:inline-block;width:30px;height:8px;border:1.5px solid var(--line);border-radius:5px;margin-left:8px;vertical-align:middle;overflow:hidden;background:var(--panel)}
 .pbar i{display:block;height:100%;background:var(--pond)}
 
 /* Sidebar */
@@ -359,6 +369,18 @@ button{cursor:pointer}
       <div class="ocstat"><small>24h volume</small><b class="display" id="oc-vol">–</b><span id="oc-price">&nbsp;</span></div>
     </div>
     <div class="ocgrid">
+      <div class="ocpanel xfeed">
+        <h3 class="display">On X</h3>
+        <div class="xtabs" role="tablist" aria-label="X accounts">
+          <button class="xtab" role="tab" data-x="moinpf" aria-selected="true">@moinpf</button>
+          <button class="xtab" role="tab" data-x="moincoinfun" aria-selected="false">@moincoinfun</button>
+        </div>
+        <div class="xbody" id="xbody"><p class="empty">Loading posts…</p></div>
+        <div class="xlinks">
+          <a href="https://x.com/i/communities/1900609188499517455" target="_blank" rel="noopener">moin Community</a>
+          <a href="https://x.com/search?q=8DXqVUopcdviLvujTcpwEqkKzB43Arp6E1axzsEE5Btq&amp;f=live" target="_blank" rel="noopener">Live CA mentions</a>
+        </div>
+      </div>
       <div class="occol">
       <div class="ocpanel">
         <h3 class="display">Live trades</h3>
@@ -805,6 +827,41 @@ const HEAD_URI="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEA
       });
     }catch(e){ ocOk.holders=false; console.warn(e); } ocStatus();
   }
+  /* ---------- X feed ---------- */
+  let xHandle='moinpf', xReq=0;
+  function xFallback(h,msg){
+    const b=$('xbody'); b.textContent='';
+    const p=document.createElement('p'); p.className='empty'; p.textContent=msg+' ';
+    const a=document.createElement('a'); a.href='https://x.com/'+h; a.target='_blank'; a.rel='noopener'; a.textContent='Open @'+h+' on X';
+    p.append(a); b.append(p);
+  }
+  function xLoad(h){
+    xHandle=h; const req=++xReq; const b=$('xbody');
+    b.textContent=''; const l=document.createElement('p'); l.className='empty'; l.textContent='Loading posts…'; b.append(l);
+    const dark=matchMedia('(prefers-color-scheme: dark)').matches;
+    const go=()=>{
+      if(req!==xReq) return;
+      if(!(window.twttr&&twttr.widgets&&twttr.widgets.createTimeline)){ xFallback(h,"X's embed didn't load (an ad blocker may be stopping it)."); return; }
+      const holder=document.createElement('div');
+      twttr.widgets.createTimeline({sourceType:'profile',screenName:h},holder,{height:600,theme:dark?'dark':'light',chrome:'noheader nofooter transparent',dnt:true})
+        .then(el=>{ if(req!==xReq) return; b.textContent=''; if(el){ b.append(holder); setTimeout(()=>{ if(req===xReq && !holder.querySelector('iframe')) xFallback(h,'X is hiding this timeline right now.'); },6000);} else xFallback(h,'X is hiding this timeline right now.'); })
+        .catch(()=>{ if(req===xReq) xFallback(h,'X is hiding this timeline right now.'); });
+    };
+    if(window.twttr&&twttr.widgets) go();
+    else if(!document.getElementById('x-widgets')){
+      window.twttr=window.twttr||{_e:[],ready(f){this._e.push(f);}};
+      const sc=document.createElement('script'); sc.id='x-widgets'; sc.async=true; sc.src='https://platform.twitter.com/widgets.js';
+      sc.onload=()=>twttr.ready?twttr.ready(go):go(); sc.onerror=()=>xFallback(h,"X's embed didn't load (an ad blocker may be stopping it).");
+      document.head.append(sc);
+      setTimeout(()=>{ if(req===xReq && !(window.twttr&&twttr.widgets)) xFallback(h,"X's embed didn't load (an ad blocker may be stopping it)."); },10000);
+    } else twttr.ready(go);
+  }
+  document.querySelectorAll('.xtab').forEach(t=>t.addEventListener('click',()=>{
+    document.querySelectorAll('.xtab').forEach(x=>x.setAttribute('aria-selected',x===t?'true':'false'));
+    xLoad(t.dataset.x);
+  }));
+  xLoad('moinpf');
+
   loadTrades(); loadDist(); loadHolders();
   setInterval(()=>{ if(!document.hidden) loadTrades(); },15000);
   setInterval(()=>{ if(!document.hidden) loadDist(); },60000);
