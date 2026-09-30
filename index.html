@@ -238,6 +238,20 @@ button{cursor:pointer}
 .peek img{display:block;width:100%;border-radius:50%;border:4px solid #12281b;box-shadow:0 0 0 5px var(--gold)}
 .peek .say{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);white-space:nowrap;background:#fff;color:#12281b;border:3px solid #12281b;border-radius:14px;padding:3px 10px;font:700 14px Fredoka,system-ui,sans-serif;margin-bottom:10px;box-shadow:3px 3px 0 #12281b}
 
+.gate{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:20px;overflow-y:auto;background:var(--bg);background-image:radial-gradient(var(--bg2) 2px,transparent 2.5px);background-size:22px 22px}
+.gate[hidden]{display:none}
+.gate form{width:min(400px,100%);padding:26px;display:grid;gap:12px;text-align:center}
+.gate img{width:96px;height:96px;border-radius:50%;border:4px solid var(--line);box-shadow:0 0 0 5px var(--gold);justify-self:center}
+.gate h2{margin:0;font-size:38px;color:var(--pond);-webkit-text-stroke:1.5px var(--line);text-shadow:3px 3px 0 var(--line)}
+.gatefields{display:grid;gap:8px;text-align:left}
+.gatefields[hidden]{display:none}
+.gatefields label{font-weight:600;font-size:14px}
+.gatefields input{border:3px solid var(--line);background:var(--panel2);border-radius:14px;padding:11px 12px;font-size:17px;width:100%}
+.gatefields .btn{margin-top:6px;padding:12px;font-size:17px}
+.gateerr{margin:0;min-height:1.2em;color:var(--lose);font-weight:600;font-size:14px}
+.gatesub{margin:0;color:var(--muted);font-size:13px;text-align:center}
+.linkbtn{border:0;background:none;color:var(--pond);font-weight:700;text-decoration:underline;padding:4px}
+
 /* Sidebar */
 .side{display:flex;flex-direction:column;gap:24px;min-height:0}
 @media (max-width:1299px){.chat{height:480px;flex:none}}
@@ -441,7 +455,29 @@ button{cursor:pointer}
   <input type="range" id="vol" min="0" max="100" value="50">
   <div class="setrow"><span>Sound effects</span><button class="switch" id="swSfx" type="button" role="switch" aria-checked="true" aria-label="Sound effects"></button></div>
   <div class="setrow"><span>Pepe bubbles &amp; peeks</span><button class="switch" id="swBub" type="button" role="switch" aria-checked="true" aria-label="Pepe bubbles and peeks"></button></div>
+  <div class="setrow" id="acctRow" hidden><span>Signed in as <b id="acctName"></b></span><button class="chip" id="signOut" type="button">Sign out</button></div>
   <p class="tnote" style="margin:0">All music is original, generated live in your browser.</p>
+</div>
+<div class="gate" id="gate">
+  <form class="box" id="gateForm" novalidate>
+    <img data-head alt="">
+    <h2 class="display" id="gateTitle">Sign in</h2>
+    <p class="gatesub" id="gateLoading">Loading…</p>
+    <div class="gatefields" id="gateFields" hidden>
+      <label for="gateUser">Username</label>
+      <input id="gateUser" autocomplete="username" maxlength="18" spellcheck="false" autocapitalize="off" required>
+      <label for="gatePass">Password</label>
+      <input id="gatePass" type="password" autocomplete="current-password" required>
+      <div id="gatePass2Row" hidden>
+        <label for="gatePass2">Confirm password</label>
+        <input id="gatePass2" type="password" autocomplete="new-password">
+      </div>
+      <p class="gateerr" id="gateErr" role="alert"></p>
+      <button class="btn" id="gateSubmit">Sign in</button>
+      <button type="button" class="linkbtn" id="gateSwitch">New here? Create an account</button>
+      <p class="gatesub">Play money only. There's no password reset, so pick one you'll remember.</p>
+    </div>
+  </form>
 </div>
 <div class="namebox" id="namebox" hidden>
   <form id="nameform" class="box">
@@ -788,22 +824,63 @@ const HEAD_URI="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEA
   function connect(detail){
     if(connect.done) return; connect.done=true;
     be=detail||null;
+    $('gate').hidden=true;
     if(!be){ if(!me.name) askName(); showOffline(); return; }
     uid=be.uid; online=true;
+    $('acctName').textContent=be.username; $('acctRow').hidden=false;
     (async()=>{
       try{
-        const p=await be.getPlayer(); if(p) Object.assign(me,p);
+        const p=await be.getPlayer();
+        Object.assign(me,{balance:START,wins:0,flips:0,best:START,streak:0,hist:[]},p||{});
+        me.name=be.username;
         if(!Array.isArray(me.hist)||!me.hist.length) me.hist=[{t:Date.now(),b:me.balance}];
-        const c=await be.getChat(); if(c) myMsgs=(c.msgs||[]).slice();
+        const c=await be.getChat(); myMsgs=c?(c.msgs||[]).slice():[];
       }catch(e){ console.warn(e); }
-      renderWallet(); if(!me.name) askName(); else save();
+      renderWallet(); save();
       be.onPlayers(list=>{ allPlayers=list; renderBoard([...allPlayers].sort((a,b)=>(b.balance||0)-(a.balance||0)).slice(0,10)); scheduleChart(); });
       be.onChat(list=>{ chatDocs={}; list.forEach(d=>chatDocs[d.id]=d); renderChat(); });
     })();
   }
   if(window.__moinBackend!==undefined) connect(window.__moinBackend);
   window.addEventListener('moin-backend',e=>connect(e.detail));
-  setTimeout(()=>{ if(!connect.done) connect(null); },12000);
+  setTimeout(()=>{ if(!connect.done && !authHelpers) connect(null); },15000);
+
+  /* ---------- Sign-in gate ---------- */
+  let authHelpers=null, gateMode='in';
+  function setGateMode(m){
+    gateMode=m; const up=m==='up';
+    $('gateTitle').textContent=up?'Create account':'Sign in'; $('gateSubmit').textContent=up?'Create account':'Sign in';
+    $('gateSwitch').textContent=up?'Have an account? Sign in':'New here? Create an account';
+    $('gatePass2Row').hidden=!up; $('gatePass').autocomplete=up?'new-password':'current-password'; $('gateErr').textContent='';
+  }
+  function showGate(h){
+    if(connect.done) return;
+    authHelpers=h; $('gate').hidden=false; $('gateLoading').hidden=true; $('gateFields').hidden=false;
+    let returning=false; try{ returning=localStorage.getItem('moinflip-hasacct')==='1'; }catch(e){}
+    setGateMode(returning?'in':'up'); setTimeout(()=>$('gateUser').focus(),50);
+  }
+  window.addEventListener('moin-auth',e=>showGate(e.detail));
+  if(window.__moinAuth) showGate(window.__moinAuth);
+  $('gateSwitch').addEventListener('click',()=>setGateMode(gateMode==='in'?'up':'in'));
+  const authMsg=x=>{ const c=(x&&x.code)||'';
+    if(/invalid-credential|wrong-password|user-not-found|invalid-email/.test(c)) return 'Wrong username or password.';
+    if(/email-already-in-use|credential-already-in-use/.test(c)) return 'That username is taken. Try another.';
+    if(/too-many-requests/.test(c)) return 'Too many tries. Wait a minute and try again.';
+    if(/network-request-failed/.test(c)) return "Can't reach the server. Check your connection.";
+    if(/operation-not-allowed/.test(c)) return 'Accounts are switched off right now.';
+    if(/weak-password/.test(c)) return 'Pick a longer password (6+ characters).';
+    return 'Something went wrong. Try again.'; };
+  $('gateForm').addEventListener('submit',async e=>{
+    e.preventDefault(); if(!authHelpers) return;
+    const u=$('gateUser').value.trim(), p=$('gatePass').value, er=$('gateErr'), btn=$('gateSubmit');
+    if(!/^[A-Za-z0-9_]{3,18}$/.test(u)){ er.textContent='Usernames are 3–18 letters, numbers or _.'; return; }
+    if(p.length<6){ er.textContent='Passwords need at least 6 characters.'; return; }
+    if(gateMode==='up' && p!==$('gatePass2').value){ er.textContent="Passwords don't match."; return; }
+    er.textContent=''; btn.disabled=true; const label=btn.textContent; btn.textContent='One sec…';
+    try{ await (gateMode==='in'?authHelpers.signIn(u,p):authHelpers.signUp(u,p)); try{ localStorage.setItem('moinflip-hasacct','1'); }catch(x){} }
+    catch(x){ console.warn(x); er.textContent=authMsg(x); }
+    btn.disabled=false; btn.textContent=label;
+  });
 
   /* ---------- Settings + original background music ---------- */
   const prefs={music:true,vol:50,bubbles:true};
@@ -911,6 +988,7 @@ const HEAD_URI="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEA
   swBub.addEventListener('click',()=>{ prefs.bubbles=!prefs.bubbles; setSw(swBub,prefs.bubbles); savePrefs(); if(!prefs.bubbles) bubLayer.textContent=''; });
   $('vol').addEventListener('input',e=>{ prefs.vol=+e.target.value; Music.setVol(prefs.vol); savePrefs(); });
   $('nextSong').addEventListener('click',()=>{ if(!prefs.music){ prefs.music=true; setSw(swMusic,true); savePrefs(); Music.start(); } else Music.next(); });
+  $('signOut').addEventListener('click',()=>{ if(be&&be.signOut) be.signOut(); });
   const panel=$('settings');
   $('gear').addEventListener('click',e=>{ e.stopPropagation(); panel.hidden=!panel.hidden; $('gear').setAttribute('aria-expanded',String(!panel.hidden)); });
   document.addEventListener('click',e=>{ if(!panel.hidden && !panel.contains(e.target) && e.target!==$('gear')) { panel.hidden=true; $('gear').setAttribute('aria-expanded','false'); } });
@@ -1095,23 +1173,45 @@ const HEAD_URI="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEA
 })();
 </script>
 <script type="module">
-  // Firebase backend for the flip game (players, chat). Config lives in firebase-config.js.
+  // Firebase backend: username + password accounts, players, chat. Config lives in firebase-config.js.
   const done=d=>{ window.__moinBackend=d; window.dispatchEvent(new CustomEvent('moin-backend',{detail:d})); };
+  const needAuth=d=>{ window.__moinAuth=d; window.dispatchEvent(new CustomEvent('moin-auth',{detail:d})); };
   try{
     const { firebaseConfig } = await import('./firebase-config.js');
     if(!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey.startsWith('PASTE')) throw new Error('firebase-config.js not filled in');
     const V='10.12.2', base='https://www.gstatic.com/firebasejs/'+V+'/';
     const { initializeApp } = await import(base+'firebase-app.js');
-    const { getAuth, signInAnonymously } = await import(base+'firebase-auth.js');
+    const A = await import(base+'firebase-auth.js');
     const fs = await import(base+'firebase-firestore.js');
-    const app=initializeApp(firebaseConfig), auth=getAuth(app), db=fs.getFirestore(app);
-    const cred=await signInAnonymously(auth); const uid=cred.user.uid;
-    const get=async(c)=>{ const s=await fs.getDoc(fs.doc(db,c,uid)); return s.exists()?s.data():null; };
-    const watch=(c,n,cb)=>fs.onSnapshot(fs.query(fs.collection(db,c),fs.limit(n)),s=>cb(s.docs.map(d=>({id:d.id,...d.data()}))),e=>console.warn(c,e));
-    done({ uid,
-      getPlayer:()=>get('players'), getChat:()=>get('chat'),
-      setPlayer:d=>fs.setDoc(fs.doc(db,'players',uid),d), setChat:d=>fs.setDoc(fs.doc(db,'chat',uid),d),
-      onPlayers:cb=>watch('players',1000,cb), onChat:cb=>watch('chat',200,cb) });
+    const app=initializeApp(firebaseConfig), auth=A.getAuth(app), db=fs.getFirestore(app);
+    // Usernames become private sign-in emails under a domain nobody receives mail at.
+    const emailOf=u=>u.trim().toLowerCase()+'@users.moinflip.app';
+    const nameOf=user=>user.displayName||(user.email||'').split('@')[0];
+    let started=false;
+    const start=(user)=>{
+      if(started) return; started=true;
+      const uid=user.uid;
+      const get=async(c)=>{ const s=await fs.getDoc(fs.doc(db,c,uid)); return s.exists()?s.data():null; };
+      const watch=(c,n,cb)=>fs.onSnapshot(fs.query(fs.collection(db,c),fs.limit(n)),s=>cb(s.docs.map(d=>({id:d.id,...d.data()}))),e=>console.warn(c,e));
+      done({ uid, username:nameOf(user),
+        signOut:()=>A.signOut(auth).then(()=>location.reload()),
+        getPlayer:()=>get('players'), getChat:()=>get('chat'),
+        setPlayer:d=>fs.setDoc(fs.doc(db,'players',uid),d), setChat:d=>fs.setDoc(fs.doc(db,'chat',uid),d),
+        onPlayers:cb=>watch('players',1000,cb), onChat:cb=>watch('chat',200,cb) });
+    };
+    const helpers={
+      async signIn(u,p){ const c=await A.signInWithEmailAndPassword(auth,emailOf(u),p); start(c.user); },
+      async signUp(u,p){
+        let user; const cur=auth.currentUser;
+        // Visitors from before accounts existed keep their balance: upgrade their guest session.
+        if(cur && cur.isAnonymous) user=(await A.linkWithCredential(cur,A.EmailAuthProvider.credential(emailOf(u),p))).user;
+        else user=(await A.createUserWithEmailAndPassword(auth,emailOf(u),p)).user;
+        await A.updateProfile(user,{displayName:u.trim()});
+        await user.getIdToken(true);
+        start(user);
+      }
+    };
+    A.onAuthStateChanged(auth,user=>{ if(started) return; if(user && !user.isAnonymous) start(user); else needAuth(helpers); });
   }catch(e){ console.warn('Moin Flip backend offline:',e); done(null); }
 </script>
 </body>
