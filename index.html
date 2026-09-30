@@ -35,7 +35,7 @@ button{cursor:pointer}
 
 .box{background:var(--panel);border:3px solid var(--line);border-radius:22px;box-shadow:6px 6px 0 var(--line)}
 
-.app{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:24px;max-width:1560px;margin:0 auto;padding:22px;min-height:100vh}
+.app{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:24px;max-width:1560px;margin:0 auto;padding:22px;align-content:start}
 @media (max-width:880px){.app{grid-template-columns:minmax(0,1fr);padding:14px;gap:20px}}
 
 /* Top bar */
@@ -146,7 +146,7 @@ button{cursor:pointer}
   .top{grid-column:1/-1}
   .app .side{display:contents}
   .sidea{grid-column:2;display:flex;flex-direction:column;gap:24px;position:sticky;top:calc(22px + env(safe-area-inset-top,0px));align-self:start}
-  .app .chat{grid-column:3;position:sticky;top:calc(22px + env(safe-area-inset-top,0px));height:calc(100vh - 150px);align-self:start}
+  .app .chat{grid-column:3;align-self:stretch;contain:size;min-height:520px}
 }
 @media (max-width:1299px){.sidea{display:flex;flex-direction:column;gap:24px}}
 
