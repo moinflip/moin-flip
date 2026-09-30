@@ -252,6 +252,17 @@ button{cursor:pointer}
 .gatesub{margin:0;color:var(--muted);font-size:13px;text-align:center}
 .linkbtn{border:0;background:none;color:var(--pond);font-weight:700;text-decoration:underline;padding:4px}
 
+.ownertag{display:inline-block;margin-left:6px;background:var(--gold);color:#12281b;border:1.5px solid #12281b;border-radius:6px;padding:0 5px;font:700 11px Fredoka,system-ui,sans-serif;vertical-align:middle}
+.modtools{float:right;display:inline-flex;gap:4px;margin-left:6px}
+.modbtn{border:1.5px solid var(--line);background:var(--panel);border-radius:6px;font-size:11px;line-height:1;padding:2px 4px;cursor:pointer}
+.modbtn:hover{background:var(--lose);color:#fff}
+.board .bal .modbtn{margin-left:6px}
+.banlist{list-style:none;margin:0;padding:0;display:grid;gap:6px;max-height:160px;overflow:auto}
+.banlist li{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--panel2);border:2px solid var(--line);border-radius:10px;padding:4px 8px;font-weight:600}
+.banlist li.empty{border:0;background:none;font-weight:400}
+.banbox{width:min(400px,100%);padding:26px;display:grid;gap:12px;text-align:center}
+#banned{z-index:90}
+
 /* Sidebar */
 .side{display:flex;flex-direction:column;gap:24px;min-height:0}
 @media (max-width:1299px){.chat{height:480px;flex:none}}
@@ -455,8 +466,21 @@ button{cursor:pointer}
   <input type="range" id="vol" min="0" max="100" value="50">
   <div class="setrow"><span>Sound effects</span><button class="switch" id="swSfx" type="button" role="switch" aria-checked="true" aria-label="Sound effects"></button></div>
   <div class="setrow"><span>Pepe bubbles &amp; peeks</span><button class="switch" id="swBub" type="button" role="switch" aria-checked="true" aria-label="Pepe bubbles and peeks"></button></div>
+  <div id="ownerTools" hidden>
+    <div class="setrow"><span>Owner tools</span><span class="ownertag">[Owner]</span></div>
+    <p class="tnote" style="margin:4px 0 6px">Delete (🗑) or ban (⛔) from the chat or leaderboard. Banned users:</p>
+    <ul class="banlist" id="banList"></ul>
+  </div>
   <div class="setrow" id="acctRow" hidden><span>Signed in as <b id="acctName"></b></span><button class="chip" id="signOut" type="button">Sign out</button></div>
   <p class="tnote" style="margin:0">All music is original, generated live in your browser.</p>
+</div>
+<div class="gate" id="banned" hidden>
+  <div class="box banbox">
+    <img data-head alt="">
+    <h2 class="display">You're banned</h2>
+    <p class="gatesub">The owner has blocked this account from Moin Flip.</p>
+    <button class="btn" id="banSignOut" type="button">Sign out</button>
+  </div>
 </div>
 <div class="gate" id="gate">
   <form class="box" id="gateForm" novalidate>
@@ -683,6 +707,33 @@ const HEAD_URI="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEA
   $('nameform').addEventListener('submit',e=>{ e.preventDefault(); const v=$('nameinput').value.trim().slice(0,18); if(!v) return;
     me.name=v; $('namebox').hidden=true; save(); sfx.win(); if(!online) showOffline(); });
 
+  /* ---------- Owner tools ---------- */
+  let ownerUid=null, isOwner=false, bans={};
+  function ownerBadge(){ const t=document.createElement('span'); t.className='ownertag'; t.textContent='[Owner]'; return t; }
+  function modBtn(icon,label,fn){ const x=document.createElement('button'); x.type='button'; x.className='modbtn'; x.textContent=icon; x.title=label; x.setAttribute('aria-label',label); x.addEventListener('click',e=>{ e.stopPropagation(); fn(); }); return x; }
+  function refreshBoard(){ renderBoard(allPlayers.filter(p=>!bans[p.id]).sort((a,b)=>(b.balance||0)-(a.balance||0)).slice(0,10)); }
+  async function deleteMsg(id,t){
+    const d=chatDocs[id]; if(!d||!be) return;
+    const msgs=(d.msgs||[]).filter(m=>m.t!==t);
+    try{ await be.setChatFor(id,{name:d.name,msgs}); if(id===uid) myMsgs=msgs; }catch(e){ console.warn(e); alert("Couldn't delete that message."); }
+  }
+  async function banUser(id,name){
+    if(!be||id===uid) return;
+    if(!confirm('Ban '+(name||'this player')+' from Moin Flip? Their chat messages will be hidden and they won\'t be able to play.')) return;
+    try{ await be.ban(id,name); }catch(e){ console.warn(e); alert("Couldn't ban that player."); }
+  }
+  function renderBanList(){
+    const ul=$('banList'); if(!ul) return; ul.textContent='';
+    const list=Object.entries(bans);
+    if(!list.length){ const li=document.createElement('li'); li.className='empty'; li.textContent='Nobody is banned.'; ul.append(li); return; }
+    list.forEach(([id,b])=>{ const li=document.createElement('li'); const n=document.createElement('span'); n.textContent=b.name||id.slice(0,6);
+      const u=document.createElement('button'); u.type='button'; u.className='chip'; u.textContent='Unban';
+      u.addEventListener('click',async()=>{ try{ await be.unban(id); }catch(e){ alert("Couldn't unban."); } });
+      li.append(n,u); ul.append(li); });
+  }
+  function showBanned(){ $('banned').hidden=false; }
+  $('banSignOut').addEventListener('click',()=>{ if(be&&be.signOut) be.signOut(); });
+
   function renderBoard(docs){
     const ol=$('board'); ol.textContent='';
     if(!docs.length){const li=document.createElement('li');li.className='empty';li.textContent='No flippers yet.';ol.append(li);return;}
@@ -690,13 +741,15 @@ const HEAD_URI="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEA
       const li=document.createElement('li'); if(d.id===uid) li.className='me';
       const r=document.createElement('span');r.className='rank';r.textContent=i+1;
       const n=document.createElement('span');n.className='nm';n.textContent=(d.name||'Anon frog')+((d.streak||0)>=3?' 🔥':'');
+      if(ownerUid && d.id===ownerUid) n.append(ownerBadge());
       const b=document.createElement('span');b.className='bal';b.textContent=fmt(d.balance||0);
+      if(isOwner && d.id && d.id!==uid) b.append(modBtn('⛔','Ban '+(d.name||'this player'),()=>banUser(d.id,d.name)));
       li.append(r,n,b); ol.append(li);
     });
   }
   let lastCount=0;
   function renderChat(){
-    const all=[]; Object.entries(chatDocs).forEach(([id,d])=>(d.msgs||[]).forEach(m=>all.push({id,name:d.name,text:m.text,t:m.t})));
+    const all=[]; Object.entries(chatDocs).forEach(([id,d])=>{ if(bans[id]) return; (d.msgs||[]).forEach(m=>all.push({id,name:d.name,text:m.text,t:m.t})); });
     all.sort((a,b)=>a.t-b.t);
     const box=$('msgs'); const atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<40;
     box.textContent='';
@@ -705,7 +758,14 @@ const HEAD_URI="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEA
       const div=document.createElement('div');div.className='msg'+(m.id===uid||m.id==='local'?' me':'');
       const b=document.createElement('b');b.textContent=m.name||'Anon frog';
       const tm=document.createElement('time');tm.textContent=new Date(m.t).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+      if(ownerUid && m.id===ownerUid) b.append(ownerBadge());
       b.append(tm);
+      if(isOwner && m.id!=='local'){
+        const tools=document.createElement('span'); tools.className='modtools';
+        tools.append(modBtn('🗑','Delete this message',()=>deleteMsg(m.id,m.t)));
+        if(m.id!==uid) tools.append(modBtn('⛔','Ban '+(m.name||'this player'),()=>banUser(m.id,m.name)));
+        b.append(tools);
+      }
       const s=document.createElement('span');s.textContent=m.text;
       div.append(b,s);box.append(div);
     });
@@ -837,7 +897,11 @@ const HEAD_URI="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEA
         const c=await be.getChat(); myMsgs=c?(c.msgs||[]).slice():[];
       }catch(e){ console.warn(e); }
       renderWallet(); save();
-      be.onPlayers(list=>{ allPlayers=list; renderBoard([...allPlayers].sort((a,b)=>(b.balance||0)-(a.balance||0)).slice(0,10)); scheduleChart(); });
+      try{ const r=await be.getRoles(); ownerUid=r.owner||null; }catch(e){}
+      isOwner=!!ownerUid && ownerUid===uid;
+      $('ownerTools').hidden=!isOwner;
+      be.onBans(list=>{ bans={}; list.forEach(b=>bans[b.id]=b); if(bans[uid] && !isOwner) showBanned(); refreshBoard(); renderChat(); renderBanList(); });
+      be.onPlayers(list=>{ allPlayers=list; refreshBoard(); scheduleChart(); });
       be.onChat(list=>{ chatDocs={}; list.forEach(d=>chatDocs[d.id]=d); renderChat(); });
     })();
   }
@@ -1197,7 +1261,12 @@ const HEAD_URI="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEA
         signOut:()=>A.signOut(auth).then(()=>location.reload()),
         getPlayer:()=>get('players'), getChat:()=>get('chat'),
         setPlayer:d=>fs.setDoc(fs.doc(db,'players',uid),d), setChat:d=>fs.setDoc(fs.doc(db,'chat',uid),d),
-        onPlayers:cb=>watch('players',1000,cb), onChat:cb=>watch('chat',200,cb) });
+        onPlayers:cb=>watch('players',1000,cb), onChat:cb=>watch('chat',200,cb),
+        getRoles:async()=>{ try{ const s=await fs.getDoc(fs.doc(db,'meta','roles')); return s.exists()?s.data():{}; }catch(e){ return {}; } },
+        onBans:cb=>watch('bans',1000,cb),
+        ban:(id,name)=>fs.setDoc(fs.doc(db,'bans',id),{name:name||'',t:Date.now(),by:uid}),
+        unban:id=>fs.deleteDoc(fs.doc(db,'bans',id)),
+        setChatFor:(id,d)=>fs.setDoc(fs.doc(db,'chat',id),d) });
     };
     const helpers={
       async signIn(u,p){ const c=await A.signInWithEmailAndPassword(auth,emailOf(u),p); start(c.user); },
