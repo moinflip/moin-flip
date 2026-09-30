@@ -7,21 +7,33 @@
 //  2. Walk the creator vault's history backward from "now" to that moment, reading only those
 //     transactions, and add up what moved from the vault into the rewards wallet.
 //  3. After that, each request only reads the vault's new transactions.
-// Progress is saved in Firestore (meta/distributed_v3) so work is never repeated.
+// Progress is saved in Firestore (meta/distributed_v4) so work is never repeated.
 const { CREATOR_VAULT, DISTRIBUTOR, rpc, adminDb, sleep } = require('../lib/solana');
 
 const TX_BUDGET = 100;      // max transactions read per request
 const SIG_PAGES = 25;       // max signature pages (1000 each) scanned per request
 
-// SOL the rewards wallet gained in a transaction where the creator vault lost SOL.
-// Balance-based, so it works however the program moved the SOL.
+// SOL the creator vault sent to the rewards wallet in a transaction.
+// Prefers the actual transfer instructions; falls back to the rewards wallet's balance
+// change (vault fees are often collected and forwarded in the same transaction, so the
+// vault's own balance may not move at all).
 function lamportsIntoDistributor(tx) {
+  let viaIx = 0;
+  const scan = (list) => {
+    for (const ins of list || []) {
+      const p = ins.parsed;
+      if (ins.program === 'system' && p && p.type === 'transfer' &&
+          p.info.source === CREATOR_VAULT && p.info.destination === DISTRIBUTOR) viaIx += Number(p.info.lamports);
+    }
+  };
+  scan(tx.transaction.message.instructions);
+  for (const inner of (tx.meta && tx.meta.innerInstructions) || []) scan(inner.instructions);
+  if (viaIx > 0) return viaIx;
   const keys = (tx.transaction.message.accountKeys || []).map((k) => (typeof k === 'string' ? k : k.pubkey));
   const v = keys.indexOf(CREATOR_VAULT), d = keys.indexOf(DISTRIBUTOR);
   if (v < 0 || d < 0 || !tx.meta) return 0;
-  const dv = tx.meta.postBalances[v] - tx.meta.preBalances[v];
   const dd = tx.meta.postBalances[d] - tx.meta.preBalances[d];
-  return dv < 0 && dd > 0 ? dd : 0;
+  return dd > 0 ? dd : 0;
 }
 
 const sigs = (address, opt) => rpc('getSignaturesForAddress', [address, { limit: 1000, ...opt }]);
@@ -30,7 +42,7 @@ const getTx = (sig) => rpc('getTransaction', [sig, { encoding: 'jsonParsed', max
 module.exports = async (req, res) => {
   try {
     const db = adminDb();
-    const ref = db.doc('meta/distributed_v3');
+    const ref = db.doc('meta/distributed_v4');
     const snap = await ref.get();
     const st = snap.exists ? snap.data() : { rev: 0, inLamports: 0, sweeps: 0, lastSweep: null };
     const s = { ...st };
