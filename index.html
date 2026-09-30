@@ -41,6 +41,12 @@ button{cursor:pointer}
 /* Top bar */
 .top{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;flex-wrap:wrap}
 .logo{display:flex;align-items:center;gap:12px}
+.socials{flex:1;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;min-width:0}
+.socials a{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink);background:var(--panel2);border:2px solid var(--line);border-radius:999px;padding:6px 12px;font-weight:700;font-size:14px;white-space:nowrap;box-shadow:2px 2px 0 var(--line);transition:transform .08s,box-shadow .08s}
+.socials a:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--line);background:var(--gold);color:#12281b}
+.socials a:active{transform:translate(2px,2px);box-shadow:none}
+.socials b{font-family:"Luckiest Guy","Arial Black",system-ui,sans-serif;font-weight:400;font-size:15px;line-height:1}
+@media (max-width:1100px){.socials{order:3;flex:1 1 100%;justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;padding:2px 2px 6px}}
 .logo img{width:48px;height:48px;border-radius:50%;border:3px solid var(--line);object-fit:cover}
 .logo h1{margin:0;font-size:clamp(30px,5vw,42px);line-height:1;color:var(--pond);-webkit-text-stroke:1.5px var(--line);text-shadow:3px 3px 0 var(--line)}
 .topright{display:flex;align-items:center;gap:10px}
@@ -313,6 +319,13 @@ button{cursor:pointer}
 <div class="app">
   <header class="top box">
     <div class="logo"><img data-head alt=""><h1 class="display">Moin Flip</h1></div>
+    <nav class="socials" aria-label="moin links">
+      <a href="https://moincoin.fun/" target="_blank" rel="noopener"><span aria-hidden="true">🌐</span>Website</a>
+      <a href="https://discord.gg/53XnBjM3qD" target="_blank" rel="noopener"><span aria-hidden="true">💬</span>Discord</a>
+      <a href="https://t.me/mointgxcomm" target="_blank" rel="noopener"><span aria-hidden="true">✈️</span>Telegram</a>
+      <a href="https://x.com/moincoinfun" target="_blank" rel="noopener"><b>X</b>@moincoinfun</a>
+      <a href="https://x.com/moinpf" target="_blank" rel="noopener"><b>X</b>@moinpf</a>
+    </nav>
     <div class="topright">
       <div class="wallet" id="wallet"><span class="amt display" id="bal">1,000</span><small>$MOIN</small></div>
       <button class="iconbtn" id="mute" aria-label="Mute sounds">🔊</button>
