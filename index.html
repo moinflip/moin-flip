@@ -843,6 +843,7 @@ const HEAD_URI="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEA
       if(req!==xReq) return;
       if(!(window.twttr&&twttr.widgets&&twttr.widgets.createTimeline)){ xFallback(h,"X's embed didn't load (an ad blocker may be stopping it)."); return; }
       const holder=document.createElement('div');
+      setTimeout(()=>{ if(req!==xReq) return; const f=holder.querySelector('iframe'); if(!f||f.offsetHeight<50) xFallback(h,"X isn't showing this feed to visitors right now."); },12000);
       twttr.widgets.createTimeline({sourceType:'profile',screenName:h},holder,{height:600,theme:dark?'dark':'light',chrome:'noheader nofooter transparent',dnt:true})
         .then(el=>{ if(req!==xReq) return; b.textContent=''; if(el){ b.append(holder); setTimeout(()=>{ if(req===xReq && !holder.querySelector('iframe')) xFallback(h,'X is hiding this timeline right now.'); },6000);} else xFallback(h,'X is hiding this timeline right now.'); })
         .catch(()=>{ if(req===xReq) xFallback(h,'X is hiding this timeline right now.'); });
